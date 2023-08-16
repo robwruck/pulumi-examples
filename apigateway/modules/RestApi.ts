@@ -219,7 +219,7 @@ export class RestApi extends aws.apigateway.RestApi {
             function: handlerCallback.arn,
             action: "lambda:InvokeFunction",
             principal: "apigateway.amazonaws.com",
-            sourceArn: this.getApiMethodArn(regionName, ownerAccountId, method, resource.fullPath)
+            sourceArn: this.resourceFactory.getMethodArn(regionName, ownerAccountId, method, resource)
         }, { parent: method })
 
         const integration = new aws.apigateway.Integration(`${resource.name}Integration`, {
@@ -235,10 +235,6 @@ export class RestApi extends aws.apigateway.RestApi {
         })
 
         return [ integration ]
-    }
-
-    private getApiMethodArn(regionName: string, ownerAccountId: string, method: aws.apigateway.Method, path: string): pulumi.Output<string> {
-        return pulumi.interpolate`arn:aws:execute-api:${regionName}:${ownerAccountId}:${this.id}/*/${method.httpMethod}/${path}`
     }
 
     private createHandlerLambda(name: string): aws.lambda.Function {

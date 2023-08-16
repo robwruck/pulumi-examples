@@ -61,4 +61,8 @@ export class ApiGatewayResourceFactory {
         }
         return this.createdResourcesByName[name]
     }
+
+    getMethodArn(regionName: string, ownerAccountId: string, method: aws.apigateway.Method, resource: ResourceDescription): pulumi.Output<string> {
+        return pulumi.interpolate`arn:aws:execute-api:${regionName}:${ownerAccountId}:${this.api.id}/*/${method.httpMethod}/${resource.fullPath}`
+    }
 }
