@@ -38,7 +38,7 @@ export class ApiGatewayResourceFactory {
                 resourceName += dirs[i].replace(/[{}+]/g, '')
                 fullPath += '*'
             } else {
-                resourceName += dirs[i].replace(/[{}+]/, '')
+                resourceName += dirs[i]
                 fullPath += dirs[i]
             }
 
