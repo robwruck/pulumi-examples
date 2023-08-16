@@ -1,0 +1,5 @@
+name: ec2-single
+runtime: nodejs
+description: A minimal AWS TypeScript Pulumi program
+backend:
+#  url: s3://pulumi-f50a39e/bootstrap?region=eu-central-1
