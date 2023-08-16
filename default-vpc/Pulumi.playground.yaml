@@ -1,0 +1,7 @@
+encryptionsalt: v1:eY+s58NwVY8=:v1:G7xHZ+rjXc/a8Gii:4pMpre50lcK2Tu4oXQlIAfkw4IPDJA==
+config:
+  aws:region: eu-central-1
+  vpc:cidrPrefix: 10.1
+  vpc:subnetAvailabilityZones: [ a, b, c ]
+  vpc:publicKeyFile: id_rsa.pub
+  vpc:internetAccess: true

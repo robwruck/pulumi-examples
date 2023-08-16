@@ -1,0 +1,5 @@
+name: bucket-notification
+runtime: nodejs
+description: A minimal AWS TypeScript Pulumi program
+backend:
+#  url: s3://pulumi-f50a39e/bucket-notification?region=eu-central-1
