@@ -1,5 +1,7 @@
 exports.handler = async (req) => {
 
+    console.log(req);
+
     const response = {
         version: 42,
         message: 'Hello, World!'

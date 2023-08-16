@@ -2,6 +2,7 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import * as crypto from 'crypto';
 import { AssetArchive, FileAsset } from "@pulumi/pulumi/asset";
+import { ApiGatewayResourceFactory } from "./ApiGatewayResourceFactory";
 
 export type RestApiParams = {
     stageName: string,
@@ -14,6 +15,7 @@ export type RestApiParams = {
 export class RestApi extends aws.apigateway.RestApi {
 
     public readonly invokeUrl: pulumi.Output<string>
+    private readonly resourceFactory: ApiGatewayResourceFactory
 
     constructor(name: string, params: RestApiParams, opts?: pulumi.ComponentResourceOptions) {
 
@@ -22,10 +24,11 @@ export class RestApi extends aws.apigateway.RestApi {
             description: "Something that shows up in OpenAPI"
         })
 
+        this.resourceFactory = new ApiGatewayResourceFactory(name, this)
         const allIntegrations: pulumi.Resource[] = []
 
-        allIntegrations.push(...this.createLambdaIntegration(`${name}-lambda`, "lambda", params.regionName, params.ownerAccountId))
-        allIntegrations.push(...this.createS3Integration(`${name}-s3`, "s3", params.bucketName, params.regionName))
+        allIntegrations.push(...this.createLambdaIntegration("lambda", params.regionName, params.ownerAccountId))
+        allIntegrations.push(...this.createS3Integration("s3", params.bucketName, params.regionName))
 
         const deployment = new aws.apigateway.Deployment(`${name}Deployment`, {
             restApi: this,
@@ -90,21 +93,11 @@ export class RestApi extends aws.apigateway.RestApi {
         return `arn:aws:logs:${regionName}:${accountId}:log-group:${logGroupName}`
     }
 
-    private createS3Integration(name: string, path: string, bucketName: pulumi.Output<string>, regionName: string): pulumi.Resource[] {
-        const parentResource = new aws.apigateway.Resource(`${name}Resource`, {
-            restApi: this,
-            parentId: this.rootResourceId,
-            pathPart: path
-        }, { parent: this })
-
-        const resource = new aws.apigateway.Resource(`${name}ProxyResource`, {
-            restApi: this,
-            parentId: parentResource.id,
-            pathPart: "{proxy+}"
-        }, { parent: parentResource })
+    private createS3Integration(path: string, bucketName: pulumi.Output<string>, regionName: string): pulumi.Resource[] {
+        const resource = this.resourceFactory.createResourceForPath(`${path}/{proxy+}`)
 
         // IAM role for the event handler Lambda
-        const s3AccessRole = new aws.iam.Role(`${name}Role`, {
+        const s3AccessRole = new aws.iam.Role(`${resource.name}Role`, {
             assumeRolePolicy: {
                 Version: '2012-10-17',
                 Statement: [
@@ -118,10 +111,10 @@ export class RestApi extends aws.apigateway.RestApi {
                     },
                 ]
             }
-        }, { parent: resource })
+        }, { parent: resource.parent })
 
         // Grant read access to S3 bucket
-        const policy1 = new aws.iam.RolePolicy(`${name}Policy`, {
+        const policy1 = new aws.iam.RolePolicy(`${resource.name}Policy`, {
             role: s3AccessRole,
             policy: {
                 Version: "2012-10-17",
@@ -137,7 +130,7 @@ export class RestApi extends aws.apigateway.RestApi {
             }
         }, { parent: s3AccessRole })
 
-        const method = new aws.apigateway.Method(`${name}GET`, {
+        const method = new aws.apigateway.Method(`${resource.name}GET`, {
             restApi: this,
             resourceId: resource.id,
             httpMethod: "GET",
@@ -146,9 +139,9 @@ export class RestApi extends aws.apigateway.RestApi {
             requestParameters: {
                 "method.request.path.proxy": true
             }
-        }, { parent: resource })
+        }, { parent: resource.parent })
     
-        const methodResponse = new aws.apigateway.MethodResponse(`${name}GETResponse`, {
+        const methodResponse = new aws.apigateway.MethodResponse(`${resource.name}GETResponse`, {
             restApi: this,
             resourceId: method.resourceId,
             httpMethod: method.httpMethod,
@@ -158,7 +151,7 @@ export class RestApi extends aws.apigateway.RestApi {
             }
         }, { parent: method })
     
-        const integration = new aws.apigateway.Integration(`${name}Integration`, {
+        const integration = new aws.apigateway.Integration(`${resource.name}Integration`, {
             restApi: this,
             resourceId: method.resourceId,
             httpMethod: method.httpMethod,
@@ -176,7 +169,7 @@ export class RestApi extends aws.apigateway.RestApi {
             parent: method
         })
 
-        const integrationResponse = new aws.apigateway.IntegrationResponse(`${name}IntegrationResponse`, {
+        const integrationResponse = new aws.apigateway.IntegrationResponse(`${resource.name}IntegrationResponse`, {
             restApi: this,
             resourceId: methodResponse.resourceId,
             httpMethod: methodResponse.httpMethod,
@@ -199,22 +192,18 @@ export class RestApi extends aws.apigateway.RestApi {
         return pulumi.interpolate`arn:aws:apigateway:${regionName}:s3:path/${bucketName}/{${filePathVariable}}`
     }
 
-    private createLambdaIntegration(name: string, path: string, regionName: string, ownerAccountId: string): pulumi.Resource[] {
-        const resource = new aws.apigateway.Resource(`${name}Resource`, {
-            restApi: this,
-            parentId: this.rootResourceId,
-            pathPart: path
-        }, { parent: this })
+    private createLambdaIntegration(path: string, regionName: string, ownerAccountId: string): pulumi.Resource[] {
+        const resource = this.resourceFactory.createResourceForPath(`${path}/{arg}`)
 
-        const method = new aws.apigateway.Method(`${name}GET`, {
+        const method = new aws.apigateway.Method(`${resource.name}GET`, {
             restApi: this,
             resourceId: resource.id,
             httpMethod: "GET",
             authorization: "NONE",
             apiKeyRequired: true
-        }, { parent: resource })
+        }, { parent: resource.parent })
         
-        const methodResponse = new aws.apigateway.MethodResponse(`${name}GETResponse`, {
+        const methodResponse = new aws.apigateway.MethodResponse(`${resource.name}GETResponse`, {
             restApi: this,
             resourceId: method.resourceId,
             httpMethod: method.httpMethod,
@@ -224,16 +213,16 @@ export class RestApi extends aws.apigateway.RestApi {
             }
         }, { parent: method })
 
-        const handlerCallback = this.createHandlerLambda(name)
+        const handlerCallback = this.createHandlerLambda(resource.name)
 
-        const permission = new aws.lambda.Permission(`${name}HandlerPermission`, {
+        const permission = new aws.lambda.Permission(`${resource.name}HandlerPermission`, {
             function: handlerCallback.arn,
             action: "lambda:InvokeFunction",
             principal: "apigateway.amazonaws.com",
-            sourceArn: this.getApiMethodArn(regionName, ownerAccountId, method, path)
+            sourceArn: this.getApiMethodArn(regionName, ownerAccountId, method, resource.fullPath)
         }, { parent: method })
 
-        const integration = new aws.apigateway.Integration(`${name}Integration`, {
+        const integration = new aws.apigateway.Integration(`${resource.name}Integration`, {
             restApi: this,
             resourceId: method.resourceId,
             httpMethod: method.httpMethod,

@@ -3,7 +3,7 @@
 This will create a REST API with two endpoints:
 
 * `/s3/*`: Fetch files from an S3 bucket using the request path
-* `/lambda`: Call a Lambda function and return the result
+* `/lambda/*`: Call a Lambda function and return the result
 
 While the `/s3` endpoint will be publicly accessible, the `/lambda` endpoint requires an API key.
 
