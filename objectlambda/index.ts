@@ -31,7 +31,7 @@ const setupProject = async (): Promise<any> => {
             bucket: bucket.bucket,
             key: fileName,
             content: fs.readFileSync(`files/${fileName}`).toString()
-        })
+        }, { parent: bucket })
     }
 
     const bucketRole = new S3AccessRole('objectlambda-bucket-role', {
