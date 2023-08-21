@@ -1,0 +1,3 @@
+.pulumi
+*.stack
+node_modules
