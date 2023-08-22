@@ -57,6 +57,22 @@ export class RestApi extends aws.apigateway.RestApi {
             }
         }, { parent: deployment })
 
+        // Guess the name of the log groups API Gateway will create,
+        // create it now and set their retention period
+        const accessLogGroup = new aws.cloudwatch.LogGroup(`${name}AccessLogGroup`, {
+            name: `${name}-${params.stageName}`,
+            retentionInDays: 14
+        }, {
+            parent: stage
+        })
+
+        const executionLogGroup = new aws.cloudwatch.LogGroup(`${name}ExecutionLogGroup`, {
+            name: pulumi.concat('API-Gateway-Execution-Logs_', this.id, '/', params.stageName),
+            retentionInDays: 14
+        }, {
+            parent: stage
+        })
+
         const all = new aws.apigateway.MethodSettings(`${name}MethodSettings`, {
             restApi: this,
             stageName: stage.stageName,
