@@ -52,7 +52,8 @@ export class DuplicateObjectLambda extends aws.lambda.Function {
             role: consumerRole.arn,
             runtime: 'nodejs16.x',
             code: archive,
-            handler: "index.handler"
+            handler: "index.handler",
+            timeout: 300
         })
 
         // Guess the name of the log group Lambda will create,

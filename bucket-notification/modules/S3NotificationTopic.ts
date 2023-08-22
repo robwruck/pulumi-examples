@@ -4,6 +4,8 @@ import * as pulumi from '@pulumi/pulumi'
 export type S3NotificationTopicParams = {
     bucketName: pulumi.Output<string>
     bucketArn: pulumi.Output<string>
+    regionName: string
+    ownerAccountId: string
 }
 
 export class S3NotificationTopic extends aws.sns.Topic {
@@ -33,7 +35,24 @@ export class S3NotificationTopic extends aws.sns.Topic {
         super(name, {
             name: name,
             sqsFailureFeedbackRoleArn: loggingRole.arn,
-            sqsSuccessFeedbackRoleArn: loggingRole.arn
+            sqsSuccessFeedbackRoleArn: loggingRole.arn,
+            sqsSuccessFeedbackSampleRate: 100
+        })
+
+        // Guess the name of the log groups SNS will create,
+        // create it now and set their retention period
+        const logGroupSuccess = new aws.cloudwatch.LogGroup(`${name}LogGroupSuccess`, {
+            name: `sns/${params.regionName}/${params.ownerAccountId}/${name}`,
+            retentionInDays: 14
+        }, {
+            parent: this
+        })
+
+        const logGroupFailure = new aws.cloudwatch.LogGroup(`${name}LogGroupFailure`, {
+            name: `sns/${params.regionName}/${params.ownerAccountId}/${name}/Failure`,
+            retentionInDays: 14
+        }, {
+            parent: this
         })
 
         const snsPolicy = new aws.sns.TopicPolicy(`${name}Policy`, {
