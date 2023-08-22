@@ -3,8 +3,6 @@ import { ClientLambda, } from "./modules/ClientLambda"
 
 const setupProject = async (): Promise<any> => {
 
-    const awsConfig = new pulumi.Config('aws')
-
     const x86 = new ClientLambda("example_x86", {
         runtime: 'nodejs18.x',
         architecture: "x86_64",

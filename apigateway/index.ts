@@ -1,4 +1,3 @@
-import * as pulumi from "@pulumi/pulumi"
 import * as aws from "@pulumi/aws"
 import * as fs from "fs"
 import { PublicS3Bucket } from "./modules/PublicS3Bucket"
@@ -7,9 +6,7 @@ import { ApiGatewayLogging } from "./modules/ApiGatewayLogging"
 
 const setupProject = async (): Promise<any> => {
 
-    const awsConfig = new pulumi.Config('aws')
-    const config = new pulumi.Config('vpc')
-
+    const region = await aws.getRegion()
     const currentIdentity = await aws.getCallerIdentity()
 
     const logging = new ApiGatewayLogging('apigateway-logging')
@@ -26,7 +23,7 @@ const setupProject = async (): Promise<any> => {
 
     const api = new RestApi("example", {
         stageName: "api",
-        regionName: awsConfig.require('region'),
+        regionName: region.name,
         ownerAccountId: currentIdentity.accountId,
         rateLimit: 1,
         bucketName: bucket.bucket
