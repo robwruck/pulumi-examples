@@ -1,3 +1,4 @@
+import * as pulumi from "@pulumi/pulumi"
 import * as aws from "@pulumi/aws";
 import { AssetArchive, FileAsset } from "@pulumi/pulumi/asset";
 
@@ -47,10 +48,18 @@ export class ClientLambda extends aws.lambda.FunctionUrl {
             runtime: params.runtime,
             role: lambdaRole.arn,
             code: archive,
-            handler: "index.handler",
-
+            handler: "index.handler"
         }, {
             dependsOn: policy
+        })
+
+        // Guess the name of the log group Lambda will create,
+        // create it now and set its retention period
+        const logGroup = new aws.cloudwatch.LogGroup(`${name}LogGroup`, {
+            name: pulumi.concat('/aws/lambda/', lambda.name),
+            retentionInDays: 14
+        }, {
+            parent: lambda
         })
 
         super(`${name}Url`, {

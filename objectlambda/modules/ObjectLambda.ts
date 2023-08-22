@@ -65,5 +65,14 @@ export class ObjectLambda extends aws.lambda.Function {
             code: archive,
             handler: "index.handler"
         })
+
+        // Guess the name of the log group Lambda will create,
+        // create it now and set its retention period
+        const logGroup = new aws.cloudwatch.LogGroup(`${name}LogGroup`, {
+            name: pulumi.concat('/aws/lambda/', this.name),
+            retentionInDays: 14
+        }, {
+            parent: this
+        })
     }
 }

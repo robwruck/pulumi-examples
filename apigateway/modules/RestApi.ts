@@ -159,7 +159,7 @@ export class RestApi extends aws.apigateway.RestApi {
             "index.js": new FileAsset('lambdas/apiHandlerLambda.js')
         })
 
-        return new aws.lambda.Function(`${name}Handler`, {
+        const lambda = new aws.lambda.Function(`${name}Handler`, {
             description: 'Maintained by Pulumi',
             runtime: 'nodejs16.x',
             role: lambdaRole.arn,
@@ -171,6 +171,17 @@ export class RestApi extends aws.apigateway.RestApi {
             parent: this,
             dependsOn: policy
         })
+
+        // Guess the name of the log group Lambda will create,
+        // create it now and set its retention period
+        const logGroup = new aws.cloudwatch.LogGroup(`${name}LogGroup`, {
+            name: pulumi.concat('/aws/lambda/', lambda.name),
+            retentionInDays: 14
+        }, {
+            parent: lambda
+        })
+
+        return lambda
     }
 
     private createAuthorizerLambda(name: string): aws.lambda.Function {
@@ -201,7 +212,7 @@ export class RestApi extends aws.apigateway.RestApi {
             "index.js": new FileAsset('lambdas/authorizerLambda.js')
         })
 
-        return new aws.lambda.Function(`${name}Handler`, {
+        const lambda = new aws.lambda.Function(`${name}Handler`, {
             description: 'Maintained by Pulumi',
             runtime: 'nodejs16.x',
             role: lambdaRole.arn,
@@ -213,5 +224,16 @@ export class RestApi extends aws.apigateway.RestApi {
             parent: this,
             dependsOn: policy
         })
+
+        // Guess the name of the log group Lambda will create,
+        // create it now and set its retention period
+        const logGroup = new aws.cloudwatch.LogGroup(`${name}LogGroup`, {
+            name: pulumi.concat('/aws/lambda/', lambda.name),
+            retentionInDays: 14
+        }, {
+            parent: lambda
+        })
+
+        return lambda
     }
 }
