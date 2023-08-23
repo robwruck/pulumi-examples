@@ -30,7 +30,10 @@ export class RestApi extends aws.apigateway.RestApi {
         this.resourceFactory = new ApiGatewayResourceFactory(name, this)
         const allIntegrations: pulumi.Resource[] = []
 
+        const role = this.createAuthorizedRole(`${name}Caller`)
+
         allIntegrations.push(this.createLambdaIntegration("lambda", params.regionName, params.ownerAccountId))
+        allIntegrations.push(this.createLambdaIAMIntegration("iam", params.regionName, params.ownerAccountId, role))
         allIntegrations.push(this.createS3Integration("s3", params.bucketName, params.regionName))
 
         const deployment = new aws.apigateway.Deployment(`${name}Deployment`, {
@@ -46,31 +49,34 @@ export class RestApi extends aws.apigateway.RestApi {
             dependsOn: allIntegrations
         })
 
-        const stage = new aws.apigateway.Stage(`${name}Stage`, {
-            deployment: deployment,
-            restApi: this,
-            stageName: params.stageName,
-            accessLogSettings: {
-                destinationArn: RestApi.getLogGroupArn(params.regionName, params.ownerAccountId, `${name}-${params.stageName}`),
-                // Log pattern to create the CLF log format
-                format: '$context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.responseLength $context.requestId'
-            }
-        }, { parent: deployment })
-
         // Guess the name of the log groups API Gateway will create,
         // create it now and set their retention period
         const accessLogGroup = new aws.cloudwatch.LogGroup(`${name}AccessLogGroup`, {
             name: `${name}-${params.stageName}`,
             retentionInDays: 14
         }, {
-            parent: stage
+            parent: deployment
         })
 
         const executionLogGroup = new aws.cloudwatch.LogGroup(`${name}ExecutionLogGroup`, {
             name: pulumi.concat('API-Gateway-Execution-Logs_', this.id, '/', params.stageName),
             retentionInDays: 14
         }, {
-            parent: stage
+            parent: deployment
+        })
+
+        const stage = new aws.apigateway.Stage(`${name}Stage`, {
+            deployment: deployment,
+            restApi: this,
+            stageName: params.stageName,
+            accessLogSettings: {
+                destinationArn: accessLogGroup.arn,
+                // Log pattern to create the CLF log format
+                format: '$context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.responseLength $context.requestId'
+            }
+        }, {
+            parent: deployment,
+            dependsOn: [ accessLogGroup, executionLogGroup ]
         })
 
         const all = new aws.apigateway.MethodSettings(`${name}MethodSettings`, {
@@ -105,11 +111,9 @@ export class RestApi extends aws.apigateway.RestApi {
             usagePlanId: usagePlan.id
         }, { parent: usagePlan })
 
-        this.invokeUrl = stage.invokeUrl
-    }
+        this.createCallerLambda(`${name}Caller`, pulumi.concat(stage.invokeUrl, '/iam/foo'), role)
 
-    private static getLogGroupArn(regionName: string, accountId: string, logGroupName: string) {
-        return `arn:aws:logs:${regionName}:${accountId}:log-group:${logGroupName}`
+        this.invokeUrl = stage.invokeUrl
     }
 
     private createS3Integration(path: string, bucketName: pulumi.Output<string>, regionName: string): pulumi.Resource {
@@ -145,6 +149,41 @@ export class RestApi extends aws.apigateway.RestApi {
             regionName,
             ownerAccountId
         }, { parent: resource.parent })
+    }
+
+    private createLambdaIAMIntegration(path: string, regionName: string, ownerAccountId: string, role: aws.iam.Role): pulumi.Resource {
+        const resource = this.resourceFactory.createResourceForPath(`${path}/{arg}`)
+
+        const handlerCallback = this.createHandlerLambda(resource.name)
+
+        const integration = new RestApiLambdaIntegration(resource.name, {
+            restApi: this,
+            resource,
+            lambdaFunction: handlerCallback,
+            apiKeyRequired: false,
+            role,
+            regionName,
+            ownerAccountId
+        }, { parent: resource.parent })
+
+        // Allow the role to invoke the API gateway handler function
+        const policy = new aws.iam.RolePolicy(`${resource.name}Policy`, {
+            role: role,
+            policy: {
+                Version: "2012-10-17",
+                Statement: [
+                    {
+                        Action: [
+                            "execute-api:Invoke"
+                        ],
+                        Effect: "Allow",
+                        Resource: integration.invokeArn
+                    }
+                ]
+            }
+        }, { parent: role })
+
+        return integration
     }
 
     private createHandlerLambda(name: string): aws.lambda.Function {
@@ -239,6 +278,67 @@ export class RestApi extends aws.apigateway.RestApi {
         }, {
             parent: this,
             dependsOn: policy
+        })
+
+        // Guess the name of the log group Lambda will create,
+        // create it now and set its retention period
+        const logGroup = new aws.cloudwatch.LogGroup(`${name}LogGroup`, {
+            name: pulumi.concat('/aws/lambda/', lambda.name),
+            retentionInDays: 14
+        }, {
+            parent: lambda
+        })
+
+        return lambda
+    }
+
+    private createAuthorizedRole(name: string): aws.iam.Role {
+        // IAM role for the event handler Lambda
+        const lambdaRole = new aws.iam.Role(`${name}Role`, {
+            assumeRolePolicy: {
+                Version: '2012-10-17',
+                Statement: [
+                    {
+                        Sid: 'AllowUsageByAWSLambda',
+                        Action: 'sts:AssumeRole',
+                        Effect: 'Allow',
+                        Principal: {
+                            Service: 'lambda.amazonaws.com'
+                        }
+                    }
+                ]
+            }
+        }, { parent: this })
+
+        // Attach predefined AWS policies for SQS and network access
+        const policyAtt = new aws.iam.RolePolicyAttachment(`${name}PolicyAttachment`, {
+            role: lambdaRole,
+            policyArn: aws.iam.ManagedPolicies.AWSLambdaBasicExecutionRole
+        }, { parent: lambdaRole })
+
+        return lambdaRole
+    }
+
+    private createCallerLambda(name: string, url: pulumi.Output<string>, role: aws.iam.Role): aws.lambda.Function {
+        const archive = new AssetArchive({
+            "index.js": new FileAsset('lambdas/apiCallerLambda.js')
+        })
+
+        const lambda = new aws.lambda.Function(`${name}Lambda`, {
+            description: 'Maintained by Pulumi',
+            runtime: 'nodejs18.x',
+            role: role.arn,
+//            timeout: 300,
+//            memorySize: 512,
+            code: archive,
+            handler: "index.handler",
+            environment: {
+                variables: {
+                    API_URL: url
+                }
+            }
+        }, {
+            parent: this
         })
 
         // Guess the name of the log group Lambda will create,

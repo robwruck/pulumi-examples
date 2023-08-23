@@ -7,12 +7,15 @@ export type RestApiLambdaIntegrationParams = {
     resource: ResourceDescription,
     lambdaFunction: aws.lambda.Function,
     apiKeyRequired: boolean,
+    role?: aws.iam.Role,
     authorizer?: aws.apigateway.Authorizer
     regionName: string,
     ownerAccountId: string
 }
 
 export class RestApiLambdaIntegration extends aws.apigateway.Integration {
+
+    public readonly invokeArn: pulumi.Output<string>
 
     constructor(name: string, params: RestApiLambdaIntegrationParams, opts?: pulumi.ComponentResourceOptions) {
 
@@ -21,10 +24,12 @@ export class RestApiLambdaIntegration extends aws.apigateway.Integration {
             resourceId: params.resource.id,
             httpMethod: "GET",
             apiKeyRequired: params.apiKeyRequired,
-            authorization: params.authorizer ? "CUSTOM" : "NONE",
+            authorization: params.authorizer ? "CUSTOM" : (params.role ? "AWS_IAM" : "NONE"),
             authorizerId: params.authorizer?.id
         }, opts)
         
+        const invokeArn = RestApiLambdaIntegration.getMethodSourceArn(params.regionName, params.ownerAccountId, method, params.resource)
+
         const methodResponse = new aws.apigateway.MethodResponse(`${name}GETResponse`, {
             restApi: params.restApi,
             resourceId: method.resourceId,
@@ -39,7 +44,7 @@ export class RestApiLambdaIntegration extends aws.apigateway.Integration {
             function: params.lambdaFunction,
             action: "lambda:InvokeFunction",
             principal: "apigateway.amazonaws.com",
-            sourceArn: RestApiLambdaIntegration.getMethodSourceArn(params.regionName, params.ownerAccountId, method, params.resource)
+            sourceArn: invokeArn
         }, { parent: method })
 
         super(`${name}Integration`, {
@@ -53,6 +58,8 @@ export class RestApiLambdaIntegration extends aws.apigateway.Integration {
             parent: method,
             dependsOn: permission
         })
+
+        this.invokeArn = invokeArn
     }
 
     private static getMethodSourceArn(regionName: string, ownerAccountId: string, method: aws.apigateway.Method, resource: ResourceDescription): pulumi.Output<string> {
