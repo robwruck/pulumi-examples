@@ -10,9 +10,9 @@ cd "$1"
 
 export PULUMI_CONFIG_PASSPHRASE="secret"
 
-pulumi new -g aws-typescript
+pulumi new -g aws-typescript -n $(basename "$PWD") -d "An AWS TypeScript Pulumi program"
 npm install
 echo ".pulumi" >> .gitignore
-echo -ne 'backend:\n  url: file://.\n' >> Pulumi.yaml
+echo 'backend:\n  url: file://.' >> Pulumi.yaml
 pulumi stack init playground
 pulumi config set -s playground aws:region eu-central-1
