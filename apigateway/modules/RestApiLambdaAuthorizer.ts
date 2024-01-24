@@ -3,6 +3,7 @@ import * as pulumi from "@pulumi/pulumi";
 
 export type RestApiLambdaAuthorizerParams = {
     restApi: aws.apigateway.RestApi,
+    identitySource: string,
     lambdaFunction: aws.lambda.Function,
     regionName: string,
     ownerAccountId: string
@@ -14,7 +15,7 @@ export class RestApiLambdaAuthorizer extends aws.apigateway.Authorizer {
         super(`${name}Authorizer`, {
             restApi: params.restApi,
             type: "REQUEST",
-            identitySource: "method.request.header.x-api-key",
+            identitySource: params.identitySource,
             authorizerUri: RestApiLambdaAuthorizer.getAuthorizerLambdaArn(params.regionName, params.lambdaFunction)
         }, opts)
 

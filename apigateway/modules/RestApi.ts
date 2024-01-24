@@ -136,6 +136,7 @@ export class RestApi extends aws.apigateway.RestApi {
         const authLambda = this.createAuthorizerLambda(`${resource.name}AuthLambda`)
         const authorizer = new RestApiLambdaAuthorizer(resource.name, {
             restApi: this,
+            identitySource: "method.request.header.x-api-key",
             lambdaFunction: authLambda,
             regionName,
             ownerAccountId
