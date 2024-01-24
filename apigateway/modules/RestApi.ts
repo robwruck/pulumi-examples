@@ -6,6 +6,7 @@ import { ApiGatewayResourceFactory } from "./ApiGatewayResourceFactory";
 import { RestApiS3Integration } from "./RestApiS3Integration";
 import { RestApiLambdaAuthorizer } from "./RestApiLambdaAuthorizer";
 import { RestApiLambdaIntegration } from "./RestApiLambdaIntegration";
+import { RestApiLambdaHttpIntegration } from "./RestApiLambdaHttpIntegration";
 
 export type RestApiParams = {
     stageName: string,
@@ -34,6 +35,7 @@ export class RestApi extends aws.apigateway.RestApi {
 
         allIntegrations.push(this.createLambdaIntegration("lambda", params.regionName, params.ownerAccountId))
         allIntegrations.push(this.createLambdaIAMIntegration("iam", params.regionName, params.ownerAccountId, role))
+        allIntegrations.push(this.createLambdaStreamIntegration("stream", params.regionName, params.ownerAccountId))
         allIntegrations.push(this.createS3Integration("s3", params.bucketName, params.regionName))
 
         const deployment = new aws.apigateway.Deployment(`${name}Deployment`, {
@@ -151,6 +153,20 @@ export class RestApi extends aws.apigateway.RestApi {
         }, { parent: resource.parent })
     }
 
+    private createLambdaStreamIntegration(path: string, regionName: string, ownerAccountId: string): pulumi.Resource {
+        const resource = this.resourceFactory.createResourceForPath(`${path}/{arg}`)
+
+        const handlerCallback = this.createStreamerLambda(resource.name)
+        return new RestApiLambdaHttpIntegration(resource.name, {
+            restApi: this,
+            resource,
+            functionUrl: handlerCallback,
+            apiKeyRequired: true,
+            regionName,
+            ownerAccountId
+        }, { parent: resource.parent })
+    }
+
     private createLambdaIAMIntegration(path: string, regionName: string, ownerAccountId: string, role: aws.iam.Role): pulumi.Resource {
         const resource = this.resourceFactory.createResourceForPath(`${path}/{arg}`)
 
@@ -237,6 +253,67 @@ export class RestApi extends aws.apigateway.RestApi {
         })
 
         return lambda
+    }
+
+    private createStreamerLambda(name: string): aws.lambda.FunctionUrl {
+        // IAM role for the event handler Lambda
+        const lambdaRole = new aws.iam.Role(`${name}Role`, {
+            assumeRolePolicy: {
+                Version: '2012-10-17',
+                Statement: [
+                    {
+                        Sid: 'AllowUsageByAWSLambda',
+                        Action: 'sts:AssumeRole',
+                        Effect: 'Allow',
+                        Principal: {
+                            Service: 'lambda.amazonaws.com'
+                        }
+                    }
+                ]
+            }
+        }, { parent: this })
+
+        // Attach predefined AWS policies for SQS and network access
+        const policy = new aws.iam.RolePolicyAttachment(`${name}PolicyAttachment`, {
+            role: lambdaRole,
+            policyArn: aws.iam.ManagedPolicies.AWSLambdaBasicExecutionRole
+        }, { parent: lambdaRole })
+
+        const archive = new AssetArchive({
+            "index.js": new FileAsset('lambdas/apiStreamerLambda.js')
+        })
+
+        const lambda = new aws.lambda.Function(`${name}Handler`, {
+            description: 'Maintained by Pulumi',
+            runtime: 'nodejs16.x',
+            role: lambdaRole.arn,
+            timeout: 300,
+//            memorySize: 512,
+            code: archive,
+            handler: "index.handler"
+        }, {
+            parent: this,
+            dependsOn: policy
+        })
+
+        const functionUrl = new aws.lambda.FunctionUrl(`${name}URL`, {
+            functionName: lambda.name,
+            authorizationType: "AWS_IAM",
+            invokeMode: "RESPONSE_STREAM"
+        }, {
+            parent: lambda
+        })
+
+        // Guess the name of the log group Lambda will create,
+        // create it now and set its retention period
+        const logGroup = new aws.cloudwatch.LogGroup(`${name}LogGroup`, {
+            name: pulumi.concat('/aws/lambda/', lambda.name),
+            retentionInDays: 14
+        }, {
+            parent: lambda
+        })
+
+        return functionUrl
     }
 
     private createAuthorizerLambda(name: string): aws.lambda.Function {
