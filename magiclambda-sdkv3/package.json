@@ -1,0 +1,17 @@
+{
+    "name": "magiclambda-sdkv3",
+    "main": "index.ts",
+    "scripts": {
+        "build": "tsc --noEmit",
+        "test": "jest --maxWorkers=4",
+        "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
+    },
+    "devDependencies": {
+        "@types/node": "ts3.8",
+        "@aws-sdk/client-sts": "^3.533.0"
+    },
+    "dependencies": {
+        "@pulumi/aws": "^6.14.0",
+        "@pulumi/pulumi": "^3.72.0"
+    }
+}
