@@ -31,7 +31,7 @@ export class ClientLambda extends aws.lambda.FunctionUrl {
 
         const lambda = new aws.lambda.CallbackFunction(`${name}Handler`, {
             description: 'Maintained by Pulumi',
-            runtime: 'nodejs18.x',
+            runtime: 'nodejs20.x',
             role: lambdaRole.arn,
             callback: handler
         }, {
