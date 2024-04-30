@@ -43,13 +43,13 @@ const setupProject = async (): Promise<any> => {
     const bucketReader = new S3ReaderLambda('objectlambda-bucket-reader', {
         roleArn: bucketRole.arn,
         runtime: 'nodejs16.x',
-        handlerFileName: 'lambda/getobject.js',
+        handlerFileName: 'lambdas/getobject.js',
         bucketName: bucket.bucket
     })
     const bucketReaderV3 = new S3ReaderLambda('objectlambda-bucket-reader-v3', {
         roleArn: bucketRole.arn,
         runtime: 'nodejs18.x',
-        handlerFileName: 'lambda/getobjectV3.js',
+        handlerFileName: 'lambdas/getobjectV3.js',
         bucketName: bucket.bucket
     })
 
@@ -76,13 +76,13 @@ const setupProject = async (): Promise<any> => {
     const accessPointReader = new S3ReaderLambda('objectlambda-ap-reader', {
         roleArn: accessPointRole.arn,
         runtime: 'nodejs16.x',
-        handlerFileName: 'lambda/getobject.js',
+        handlerFileName: 'lambdas/getobject.js',
         bucketName: accessPoint.arn
     })
     const accessPointReaderV3 = new S3ReaderLambda('objectlambda-ap-reader-v3', {
         roleArn: accessPointRole.arn,
         runtime: 'nodejs18.x',
-        handlerFileName: 'lambda/getobjectV3.js',
+        handlerFileName: 'lambdas/getobjectV3.js',
         bucketName: accessPoint.arn
     })
 
