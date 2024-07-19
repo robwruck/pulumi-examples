@@ -4,3 +4,6 @@ config:
   ec2:cidrBlock: 10.1.0.0/24
   ec2:securityGroupName: main-SSH
   ec2:sshKeyName: main
+  ec2:amiId: ami-0b9bddb8e0d17f17a
+  ec2:instanceType: t4g.nano
+  ec2:userName: ubuntu

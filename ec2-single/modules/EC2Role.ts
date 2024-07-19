@@ -1,8 +1,13 @@
+import * as pulumi from "@pulumi/pulumi"
 import * as aws from "@pulumi/aws"
+
+export type EC2RoleParams = {
+    logGroupArn: pulumi.Output<string>
+}
 
 export class EC2Role extends aws.iam.InstanceProfile {
 
-    constructor(name: string) {
+    constructor(name: string, params: EC2RoleParams) {
 
         const role = new aws.iam.Role(`${name}Role`, {
             assumeRolePolicy: {
@@ -29,6 +34,15 @@ export class EC2Role extends aws.iam.InstanceProfile {
                         Effect: "Allow",
                         Action: "s3:ListAllMyBuckets",
                         Resource: '*'
+                    },
+                    {
+                        Effect: "Allow",
+                        Action: [
+                            "logs:CreateLogStream",
+                            "logs:DescribeLogStreams",
+                            "logs:PutLogEvents"
+                        ],
+                        Resource: pulumi.concat(params.logGroupArn, ":*")
                     }
                 ]
             }

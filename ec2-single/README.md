@@ -4,6 +4,8 @@ This will create a single EC2 instance in the VPC created by default-vpc.
 
 The instance will be associated with an IAM role that grants permission to perform an `aws s3 ls`.
 
+Syslog messages will be sent to 
+
 ## Deployment
 
 We won't store any secrets in the Pulumi state, so just set
