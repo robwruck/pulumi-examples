@@ -4,7 +4,7 @@ This will create a single EC2 instance in the VPC created by default-vpc.
 
 The instance will be associated with an IAM role that grants permission to perform an `aws s3 ls`.
 
-Syslog messages will be sent to 
+Syslog messages will be sent to a CloudWatch log group.
 
 ## Deployment
 

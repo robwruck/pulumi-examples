@@ -24,6 +24,7 @@ write_files:
 runcmd:
 - curl -o /tmp/amazon-cloudwatch-agent.deb https://amazoncloudwatch-agent-REGION_NAME.s3.REGION_NAME.amazonaws.com/ubuntu/arm64/latest/amazon-cloudwatch-agent.deb
 - dpkg -i /tmp/amazon-cloudwatch-agent.deb
+- rm /tmp/amazon-cloudwatch-agent.deb
 - mv /tmp/amazon-cloudwatch-agent.json /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 - systemctl enable amazon-cloudwatch-agent
 - systemctl start amazon-cloudwatch-agent
