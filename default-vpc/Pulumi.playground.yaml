@@ -4,4 +4,3 @@ config:
   vpc:cidrPrefix: 10.1
   vpc:subnetAvailabilityZones: [ a, b, c ]
   vpc:publicKeyFile: id_rsa.pub
-  vpc:internetAccess: true

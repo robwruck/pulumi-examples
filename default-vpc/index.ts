@@ -11,8 +11,7 @@ const setupProject = async (): Promise<any> => {
     const vpc = new VpcWithSubnets("main", {
         region: region.name,
         cidrPrefix: config.require('cidrPrefix'),
-        subnetAvailabilityZones: config.requireObject<string[]>('subnetAvailabilityZones'),
-        internetAccess: config.requireBoolean('internetAccess')
+        subnetAvailabilityZones: config.requireObject<string[]>('subnetAvailabilityZones')
     })
 
     const keyPair = new SSHKey("main", {
