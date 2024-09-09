@@ -23,7 +23,10 @@ export class EC2Instance extends aws.ec2.Instance {
             vpcSecurityGroupIds: [ params.securityGroupId ],
             iamInstanceProfile: params.instanceProfileName,
             userData: params.userData,
-            userDataReplaceOnChange: true
+            userDataReplaceOnChange: true,
+            tags: {
+                Name: name
+            }
         })
     }
 }
