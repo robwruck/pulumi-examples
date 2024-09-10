@@ -3,14 +3,16 @@ import { ClientLambda, } from "./modules/ClientLambda"
 
 const setupProject = async (): Promise<any> => {
 
-    const x86 = new ClientLambda("example_x86", {
+    const name = pulumi.getProject()
+
+    const x86 = new ClientLambda(`${name}-x86`, {
         runtime: 'nodejs18.x',
         architecture: "x86_64",
         memorySize: 128,
         timeout: 300
     })
 
-    const arm = new ClientLambda("example_arm", {
+    const arm = new ClientLambda(`${name}-arm`, {
         runtime: 'nodejs18.x',
         architecture: "arm64",
         memorySize: 128,
