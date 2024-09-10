@@ -1,0 +1,28 @@
+#cloud-config
+
+write_files:
+- path: /srv/index.html
+  permissions: '0644'
+  content: |
+    <html>
+    <head>
+    <title>Example</title>
+    <body><h1>It works!</h1></body>
+    </html>
+- path: /etc/systemd/system/py-http.service
+  permissions: '0644'
+  content: |
+    [Unit]
+    Description=Python HTTP Server
+    After=network.target remote-fs.target nss-lookup.target
+    [Service]
+    Type=simple
+    WorkingDirectory=/srv
+    ExecStart=/usr/bin/python3 -m http.server 80
+    [Install]
+    WantedBy=multi-user.target
+
+runcmd:
+- systemctl daemon-reload
+- systemctl enable py-http
+- systemctl start py-http
