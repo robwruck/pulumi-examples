@@ -1,5 +1,5 @@
 {
-    "name": "ec2-apigateway",
+    "name": "apigateway-ec2",
     "main": "index.ts",
     "scripts": {
         "build": "tsc --noEmit",

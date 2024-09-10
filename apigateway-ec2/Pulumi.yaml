@@ -1,4 +1,4 @@
-name: ec2-apigateway
+name: apigateway-ec2
 runtime: nodejs
 description: A minimal AWS TypeScript Pulumi program
 backend:
