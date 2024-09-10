@@ -5,16 +5,17 @@ import { SSHKey } from "./modules/SSHKey"
 
 const setupProject = async (): Promise<any> => {
 
+    const name = pulumi.getProject()
     const region = await aws.getRegion()
     const config = new pulumi.Config('vpc')
 
-    const vpc = new VpcWithSubnets("main", {
+    const vpc = new VpcWithSubnets(name, {
         region: region.name,
         cidrPrefix: config.require('cidrPrefix'),
         subnetAvailabilityZones: config.requireObject<string[]>('subnetAvailabilityZones')
     })
 
-    const keyPair = new SSHKey("main", {
+    const keyPair = new SSHKey(name, {
         publicKeyFile: `keys/${config.require('publicKeyFile')}`
     })
 

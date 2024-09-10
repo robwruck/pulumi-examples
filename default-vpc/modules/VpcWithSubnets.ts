@@ -41,7 +41,7 @@ export class VpcWithSubnets extends aws.ec2.Vpc {
             tags: {
                 Name: `${name}-public`
             }
-        })
+        }, { parent: this })
 
         for (let i = 0; i < params.subnetAvailabilityZones.length; i++) {
             const az = params.subnetAvailabilityZones[i]
@@ -69,7 +69,7 @@ export class VpcWithSubnets extends aws.ec2.Vpc {
             new aws.ec2.RouteTableAssociation(`${name}-public-${az}-route`, {
                 subnetId: subnet.id,
                 routeTableId: publicRouteTable.id
-            })
+            }, { parent: publicRouteTable })
             this.subnetIds.push(subnet.id)
         }
 
@@ -104,7 +104,7 @@ export class VpcWithSubnets extends aws.ec2.Vpc {
             tags: {
                 Name: `${name}-SSH`
             }
-        })
+        }, { parent: this })
 
         this.securityGroupId = sg.id
     }
