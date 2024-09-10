@@ -1,28 +1,29 @@
+import * as pulumi from "@pulumi/pulumi"
 import * as aws from "@pulumi/aws"
 import * as fs from "fs"
 import { PublicS3Bucket } from "./modules/PublicS3Bucket"
 import { RestApi } from "./modules/RestApi"
 import { ApiGatewayLogging } from "./modules/ApiGatewayLogging"
-import { BasicAuthRestApi } from "./modules/BasicAuthRestApi"
 
 const setupProject = async (): Promise<any> => {
 
+    const name = pulumi.getProject()
     const region = await aws.getRegion()
     const currentIdentity = await aws.getCallerIdentity()
 
-    const logging = new ApiGatewayLogging('apigateway-logging')
+    const logging = new ApiGatewayLogging(`${name}-logging`)
 
-    const bucket = new PublicS3Bucket('apigateway-bucket')
+    const bucket = new PublicS3Bucket(`${name}-bucket`)
 
     for (const fileName of fs.readdirSync('files')) {
-        new aws.s3.BucketObject(fileName, {
+        new aws.s3.BucketObject(`${name}-${fileName}`, {
             bucket: bucket.bucket,
             key: fileName,
             content: fs.readFileSync(`files/${fileName}`, 'utf-8')
         }, { parent: bucket })
     }
 
-    const api = new RestApi("example", {
+    const api = new RestApi(name, {
         stageName: "api",
         regionName: region.name,
         ownerAccountId: currentIdentity.accountId,
@@ -30,27 +31,9 @@ const setupProject = async (): Promise<any> => {
         bucketName: bucket.bucket
     }, { dependsOn: logging })
 
-    const contentSuccess = fs.readFileSync('pages/success.html', 'utf-8')
-    const contentUnauthorized = fs.readFileSync('pages/unauthorized.html', 'utf-8')
-    const contentInvalidApiKey = fs.readFileSync('pages/invalid_api_key.html', 'utf-8')
-    const contentAccessDenied = fs.readFileSync('pages/access_denied.html', 'utf-8')
-
-    const basicAuthApi = new BasicAuthRestApi("basicExample", {
-        stageName: "api",
-        regionName: region.name,
-        ownerAccountId: currentIdentity.accountId,
-        rateLimit: 1,
-        contentSuccess,
-        contentUnauthorized,
-        contentInvalidApiKey,
-        contentAccessDenied
-    }, { dependsOn: logging })
-
     return {
         apiId: api.id,
-        invokeUrl: api.invokeUrl,
-        basicAuthApiId: basicAuthApi.id,
-        basicAuthInvokeUrl: basicAuthApi.invokeUrl
+        invokeUrl: api.invokeUrl
     }
 }
 
