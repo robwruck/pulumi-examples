@@ -6,6 +6,7 @@ import { EC2Role } from "./modules/EC2Role"
 
 const setupProject = async (): Promise<any> => {
 
+    const name = pulumi.getProject()
     const region = await aws.getRegion()
     const config = new pulumi.Config('ec2')
 
@@ -17,11 +18,11 @@ const setupProject = async (): Promise<any> => {
         name: config.require('securityGroupName')
     })
 
-    const logGroup = new aws.cloudwatch.LogGroup("syslog", {
+    const logGroup = new aws.cloudwatch.LogGroup(`${name}-syslog`, {
         retentionInDays: 7
     })
 
-    const profile = new EC2Role("s3", {
+    const profile = new EC2Role(name, {
         logGroupArn: logGroup.arn
     })
 
@@ -32,7 +33,7 @@ const setupProject = async (): Promise<any> => {
         cloudInitYaml.replace('LOG_GROUP_NAME', logGroupName)
     )
 
-    const instance = new EC2Instance("single", {
+    const instance = new EC2Instance(name, {
         amiId: config.require('amiId'),
         instanceType: config.require('instanceType'),
         subnetId: subnet.id,

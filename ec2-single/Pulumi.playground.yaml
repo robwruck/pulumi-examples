@@ -2,8 +2,8 @@ encryptionsalt: v1:eY+s58NwVY8=:v1:G7xHZ+rjXc/a8Gii:4pMpre50lcK2Tu4oXQlIAfkw4IPD
 config:
   aws:region: eu-central-1
   ec2:cidrBlock: 10.1.3.0/24
-  ec2:securityGroupName: main-SSH
-  ec2:sshKeyName: main
+  ec2:securityGroupName: default-vpc-SSH
+  ec2:sshKeyName: default-vpc
   ec2:amiId: ami-0b9bddb8e0d17f17a
   ec2:instanceType: t4g.nano
   ec2:userName: ubuntu
