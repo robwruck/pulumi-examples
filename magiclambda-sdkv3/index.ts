@@ -1,8 +1,10 @@
+import * as pulumi from "@pulumi/pulumi"
 import { ClientLambda, } from "./modules/ClientLambda"
 
 const setupProject = async (): Promise<any> => {
 
-    const lambda = new ClientLambda("example_sdkv3")
+    const name = pulumi.getProject()
+    const lambda = new ClientLambda(name)
 
     return {
         x86LambdaUrl: lambda.functionUrl
