@@ -6,16 +6,15 @@ import { VpcLinkRestApi } from "./modules/VpcLinkRestApi";
 
 const setupProject = async (): Promise<any> => {
 
-    const region = await aws.getRegion()
+    const name = pulumi.getProject()
     const config = new pulumi.Config('ec2')
 
     const subnet = await aws.ec2.getSubnet({
         cidrBlock: config.require('cidrBlock')
     })
 
-    const securityGroup = new aws.ec2.SecurityGroup(`single-http`, {
+    const securityGroup = new aws.ec2.SecurityGroup(`${name}-securitygroup`, {
         vpcId: subnet.vpcId,
-        name: `single-HTTP`,
         ingress: [
             {
                 self: true,
@@ -49,13 +48,13 @@ const setupProject = async (): Promise<any> => {
             }
         ],
         tags: {
-            Name: `single-HTTP`
+            Name: `${name}-securitygroup`
         }
     })
 
     const cloudInitYaml = fs.readFileSync("assets/cloud-init.yaml", "utf-8")
 
-    const instance = new EC2Instance("single-http", {
+    const instance = new EC2Instance(name, {
         amiId: config.require('amiId'),
         instanceType: config.require('instanceType'),
         subnetId: subnet.id,
@@ -64,7 +63,7 @@ const setupProject = async (): Promise<any> => {
         userData: pulumi.output(cloudInitYaml)
     })
 
-    const targetGroup = new aws.lb.TargetGroup("single-http", {
+    const targetGroup = new aws.lb.TargetGroup(`${name}-target`, {
         targetType: "instance",
         protocol: "TCP",
         port: 80,
@@ -75,13 +74,13 @@ const setupProject = async (): Promise<any> => {
         }
     })
 
-    new aws.lb.TargetGroupAttachment("single-http", {
+    new aws.lb.TargetGroupAttachment(`${name}-attachment`, {
         targetGroupArn: targetGroup.arn,
         targetId: instance.id,
         port: 80
-    })
+    }, { parent: targetGroup })
 
-    const loadBalancer = new aws.lb.LoadBalancer("single-http", {
+    const loadBalancer = new aws.lb.LoadBalancer(`${name}-nlb`, {
         loadBalancerType: "network",
         internal: true,
         ipAddressType: "ipv4",
@@ -91,7 +90,7 @@ const setupProject = async (): Promise<any> => {
         securityGroups: [securityGroup.id]
     })
 
-    new aws.lb.Listener("single-http", {
+    new aws.lb.Listener(`${name}-listener`, {
         loadBalancerArn: loadBalancer.arn,
         protocol: "TCP",
         port: 80,
@@ -101,9 +100,9 @@ const setupProject = async (): Promise<any> => {
             targetGroupArn: targetGroup.arn
             }
         ]
-    })
+    }, { parent: loadBalancer })
 
-    const api = new VpcLinkRestApi("single-http", {
+    const api = new VpcLinkRestApi(name, {
         stageName: "api",
         backendNlb: loadBalancer
     })

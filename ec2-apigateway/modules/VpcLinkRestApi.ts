@@ -18,18 +18,18 @@ export class VpcLinkRestApi extends aws.apigateway.RestApi {
             description: "Something that shows up in OpenAPI"
         })
         
-        const vpcLink = new aws.apigateway.VpcLink(name, {
+        const vpcLink = new aws.apigateway.VpcLink(`${name}-vpclink`, {
             targetArn: params.backendNlb.arn
-        })
+        }, { parent: this })
         
         const method = new aws.apigateway.Method(`${name}-GET`, {
             restApi: this,
             resourceId: this.rootResourceId,
             httpMethod: "GET",
             authorization: "NONE"
-        })
+        }, { parent: this })
         
-        const integration = new aws.apigateway.Integration(`${name}-Integration`, {
+        const integration = new aws.apigateway.Integration(`${name}-GET-Integration`, {
             restApi: this,
             resourceId: method.resourceId,
             httpMethod: method.httpMethod,
@@ -51,6 +51,7 @@ export class VpcLinkRestApi extends aws.apigateway.RestApi {
                 redeployment: crypto.randomUUID()
             }
         }, {
+            parent: this,
             dependsOn: integration
         })
         
